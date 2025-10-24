@@ -6,9 +6,9 @@ on:
     branches: [main]
     # EDIT THIS LIST ONCE (CD)
     paths: &cd_modules
-      - 'azure_platform_identity_tf/**'
-      - 'azure_platform_management_tf/**'
-      - 'azure_platform_shared_hub_tf/**'
+      - '01_platform_connectivity/**'
+      - '02_platform_management/**'
+      - '03_platform_identity/**'
   workflow_dispatch:
     inputs:
       module:
@@ -29,20 +29,36 @@ on:
         type: string
 
 jobs:
-  plan_and_apply:
+  # Auto: run for all modules on push
+  plan_and_apply_auto:
+    if: ${{ github.event_name == 'push' }}
     name: CD • ${{ matrix.module }}
     strategy:
       fail-fast: false
       matrix:
         module: *cd_modules
-    # manual run => only the selected module; push run => all matrix entries
-    if: ${{ github.event_name != 'workflow_dispatch' || matrix.module == github.event.inputs.module }}
     permissions:
       id-token: write
       contents: read
     uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
     with:
-      # sanitized in the template to strip "/**"
-      root_module_folder_relative_path: ${{ matrix.module }}
+      root_module_folder_relative_path: ${{ matrix.module }} # template strips '/**'
+      terraform_action: ${{ github.event.inputs.terraform_action || 'apply' }}
+      terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
+
+  # Manual: run only the selected module
+  plan_and_apply_manual:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    name: CD • ${{ matrix.module }}
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ['${{ github.event.inputs.module }}']
+    permissions:
+      id-token: write
+      contents: read
+    uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
+    with:
+      root_module_folder_relative_path: ${{ matrix.module }} # template strips '/**'
       terraform_action: ${{ github.event.inputs.terraform_action || 'apply' }}
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}

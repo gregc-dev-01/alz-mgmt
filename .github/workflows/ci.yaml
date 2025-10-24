@@ -5,9 +5,9 @@ on:
   pull_request:
     branches: [main]
     paths: &ci_modules
-      - 'azure_platform_identity_tf/**'
-      - 'azure_platform_management_tf/**'
-      - 'azure_platform_shared_hub_tf/**'
+      - '01_platform_connectivity/**'
+      - '02_platform_management/**'
+      - '03_platform_identity/**'
   workflow_dispatch:
     inputs:
       module:
@@ -22,20 +22,36 @@ on:
         type: string
 
 jobs:
-  validate_and_plan:
+  # Auto: run all modules that matched paths on PRs
+  validate_and_plan_auto:
+    if: ${{ github.event_name == 'pull_request' }}
     name: CI • ${{ matrix.module }}
     strategy:
       fail-fast: false
       matrix:
         module: *ci_modules
-    # manual run => only the selected module; PR run => all matrix entries
-    if: ${{ github.event_name != 'workflow_dispatch' || matrix.module == github.event.inputs.module }}
     permissions:
       id-token: write
       contents: read
       pull-requests: write
     uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
     with:
-      # sanitized in the template to strip "/**"
-      root_module_folder_relative_path: ${{ matrix.module }}
+      root_module_folder_relative_path: ${{ matrix.module }} # template strips '/**'
+      terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
+
+  # Manual: run only the selected module
+  validate_and_plan_manual:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    name: CI • ${{ matrix.module }}
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ['${{ github.event.inputs.module }}']
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
+    with:
+      root_module_folder_relative_path: ${{ matrix.module }} # template strips '/**'
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
