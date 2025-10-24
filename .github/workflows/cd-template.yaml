@@ -1,5 +1,6 @@
 ---
 name: Continuous Delivery
+
 on:
   workflow_call:
     inputs:
@@ -19,19 +20,22 @@ on:
 jobs:
   plan:
     name: Plan with Terraform
-    runs-on:
-      ubuntu-latest
-    concurrency: mgmt-tfstate
+    runs-on: ubuntu-latest
+    concurrency:
+      group: mgmt-tfstate-${{ inputs.root_module_folder_relative_path }}
+      cancel-in-progress: false
     environment: alz-mgmt-plan
     permissions:
       id-token: write
       contents: read
     env:
-      ARM_CLIENT_ID: "${{ vars.AZURE_CLIENT_ID }}"
-      ARM_SUBSCRIPTION_ID: "${{ vars.AZURE_SUBSCRIPTION_ID }}"
-      ARM_TENANT_ID: "${{ vars.AZURE_TENANT_ID }}"
+      ARM_CLIENT_ID: '${{ vars.AZURE_CLIENT_ID }}'
+      ARM_SUBSCRIPTION_ID: '${{ vars.AZURE_SUBSCRIPTION_ID }}'
+      ARM_TENANT_ID: '${{ vars.AZURE_TENANT_ID }}'
       ARM_USE_AZUREAD: true
       ARM_USE_OIDC: true
+    outputs:
+      artifact_name: ${{ steps.names.outputs.artifact_name }}
 
     steps:
       - name: Checkout Code
@@ -43,21 +47,38 @@ jobs:
           terraform_wrapper: false
           terraform_version: ${{ inputs.terraform_cli_version }}
 
-      - name: Terraform Init
+      - name: Derive names (state key & artifact name)
+        id: names
+        shell: bash
+        run: |
+          root="${{ inputs.root_module_folder_relative_path }}"
+          root="${root#./}"; root="${root%/}"
+          if [ -z "$root" ] || [ "$root" = "." ]; then
+            state_key="root/terraform.tfstate"
+            artifact="root"
+          else
+            state_key="$root/terraform.tfstate"
+            # artifact names can't contain slashes
+            artifact="${root//\//_}"
+          fi
+          echo "state_key=$state_key" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform Init (remote backend)
         run: |
           terraform \
-          -chdir="${{inputs.root_module_folder_relative_path}}" \
+          -chdir="${{ inputs.root_module_folder_relative_path }}" \
           init \
-          -backend-config="resource_group_name=${{vars.BACKEND_AZURE_RESOURCE_GROUP_NAME}}" \
-          -backend-config="storage_account_name=${{vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME}}" \
-          -backend-config="container_name=${{vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME}}" \
-          -backend-config="key=terraform.tfstate"
+          -backend-config="resource_group_name=${{ vars.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
+          -backend-config="storage_account_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
+          -backend-config="container_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}" \
+          -backend-config="key=${{ steps.names.outputs.state_key }}"
 
       - name: Terraform Plan for ${{ inputs.terraform_action == 'destroy' && 'Destroy' || 'Apply' }}
         run: |
           # shellcheck disable=SC2086
           terraform \
-          -chdir="${{inputs.root_module_folder_relative_path}}" \
+          -chdir="${{ inputs.root_module_folder_relative_path }}" \
           plan \
           -out=tfplan \
           -input=false \
@@ -66,53 +87,52 @@ jobs:
       - name: Create Module Artifact
         run: |
           $stagingDirectory = "staging"
-          $rootModuleFolder = "${{inputs.root_module_folder_relative_path}}"
-          New-Item -Path . -Name $stagingDirectory -ItemType "directory"
+          $rootModuleFolder = "${{ inputs.root_module_folder_relative_path }}"
+          New-Item -Path . -Name $stagingDirectory -ItemType "directory" | Out-Null
           Copy-Item -Path "./*" -Exclude @(".git", ".terraform", ".github",  $stagingDirectory) -Recurse -Destination "./$stagingDirectory"
 
           $rootModuleFolderTerraformFolder = Join-Path -Path "./$stagingDirectory" -ChildPath $rootModuleFolder -AdditionalChildPath ".terraform"
-          if(Test-Path -Path $rootModuleFolderTerraformFolder) {
+          if (Test-Path -Path $rootModuleFolderTerraformFolder) {
             Remove-Item -Path $rootModuleFolderTerraformFolder -Recurse -Force
           }
-
         shell: pwsh
 
       - name: Publish Module Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: module
+          name: module-${{ steps.names.outputs.artifact_name }}
           path: ./staging/
 
       - name: Show the Plan for Review
         run: |
           terraform \
-          -chdir="${{inputs.root_module_folder_relative_path}}" \
-          show \
-          tfplan
+          -chdir="${{ inputs.root_module_folder_relative_path }}" \
+          show tfplan
 
   apply:
     needs: plan
     name: Apply with Terraform
-    runs-on:
-      ubuntu-latest
-    concurrency: mgmt-tfstate
+    runs-on: ubuntu-latest
+    concurrency:
+      group: mgmt-tfstate-${{ inputs.root_module_folder_relative_path }}
+      cancel-in-progress: false
     environment: alz-mgmt-apply
     permissions:
       id-token: write
       contents: read
     env:
-      ARM_CLIENT_ID: "${{ vars.AZURE_CLIENT_ID }}"
-      ARM_SUBSCRIPTION_ID: "${{ vars.AZURE_SUBSCRIPTION_ID }}"
-      ARM_TENANT_ID: "${{ vars.AZURE_TENANT_ID }}"
+      ARM_CLIENT_ID: '${{ vars.AZURE_CLIENT_ID }}'
+      ARM_SUBSCRIPTION_ID: '${{ vars.AZURE_SUBSCRIPTION_ID }}'
+      ARM_TENANT_ID: '${{ vars.AZURE_TENANT_ID }}'
       ARM_USE_AZUREAD: true
       ARM_USE_OIDC: true
-      AZAPI_RETRY_GET_AFTER_PUT_MAX_TIME: "60m" # Accounts for eventually consistent management group permissions propagation
+      AZAPI_RETRY_GET_AFTER_PUT_MAX_TIME: '60m' # allow mgmt group permission propagation
 
     steps:
-      - name: Download a Build Artifact
+      - name: Download Module Artifact
         uses: actions/download-artifact@v4
         with:
-          name: module
+          name: module-${{ needs.plan.outputs.artifact_name }}
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -120,20 +140,33 @@ jobs:
           terraform_wrapper: false
           terraform_version: ${{ inputs.terraform_cli_version }}
 
-      - name: Terraform Init
+      - name: Derive Terraform state key from path
+        id: names
+        shell: bash
+        run: |
+          root="${{ inputs.root_module_folder_relative_path }}"
+          root="${root#./}"; root="${root%/}"
+          if [ -z "$root" ] || [ "$root" = "." ]; then
+            key="root/terraform.tfstate"
+          else
+            key="$root/terraform.tfstate"
+          fi
+          echo "state_key=$key" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform Init (remote backend)
         run: |
           terraform \
-          -chdir="${{inputs.root_module_folder_relative_path}}" \
+          -chdir="${{ inputs.root_module_folder_relative_path }}" \
           init \
-          -backend-config="resource_group_name=${{vars.BACKEND_AZURE_RESOURCE_GROUP_NAME}}" \
-          -backend-config="storage_account_name=${{vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME}}" \
-          -backend-config="container_name=${{vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME}}" \
-          -backend-config="key=terraform.tfstate"
+          -backend-config="resource_group_name=${{ vars.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
+          -backend-config="storage_account_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
+          -backend-config="container_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}" \
+          -backend-config="key=${{ steps.names.outputs.state_key }}"
 
       - name: Terraform ${{ inputs.terraform_action == 'destroy' && 'Destroy' || 'Apply' }}
         run: |
           terraform \
-          -chdir="${{inputs.root_module_folder_relative_path}}" \
+          -chdir="${{ inputs.root_module_folder_relative_path }}" \
           apply \
           -input=false \
           -auto-approve \

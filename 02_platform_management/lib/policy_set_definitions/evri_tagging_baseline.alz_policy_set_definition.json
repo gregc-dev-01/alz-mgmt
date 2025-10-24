@@ -1,0 +1,72 @@
+{
+  "name": "PI-Evri-Tagging-Baseline",
+  "type": "Microsoft.Authorization/policySetDefinitions",
+  "apiVersion": "2024-04-01",
+  "properties": {
+    "policyType": "Custom",
+    "displayName": "EVRi Tagging Baseline",
+    "description": "MC: Policy Initiative for mandatory tagging adding x6 Policy Definitions of \"Require a tag on resources\"",
+    "metadata": {
+      "version": "1.0.0",
+      "category": "Tags"
+    },
+    "parameters": {},
+    "policyDefinitions": [
+      {
+        "policyDefinitionReferenceId": "PD-Custom-Tagging-Description-001",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/871b6d14-10aa-478d-b590-94f262ecfa99",
+        "parameters": {
+          "tagName": { "value": "Description" }
+        },
+        "groupNames": ["Resource-Tags"]
+      },
+      {
+        "policyDefinitionReferenceId": "PD-Custom-Tagging-Owner-001",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/871b6d14-10aa-478d-b590-94f262ecfa99",
+        "parameters": {
+          "tagName": { "value": "Owner" }
+        },
+        "groupNames": ["Resource-Tags"]
+      },
+      {
+        "policyDefinitionReferenceId": "PD-Custom-Tagging-Environment-001",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/871b6d14-10aa-478d-b590-94f262ecfa99",
+        "parameters": {
+          "tagName": { "value": "Environment" }
+        },
+        "groupNames": ["Resource-Tags"]
+      },
+      {
+        "policyDefinitionReferenceId": "PD-Custom-Tagging-Service-001",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/871b6d14-10aa-478d-b590-94f262ecfa99",
+        "parameters": {
+          "tagName": { "value": "Service" }
+        },
+        "groupNames": ["Resource-Tags"]
+      },
+      {
+        "policyDefinitionReferenceId": "PD-Custom-Tagging-CostCentre-001",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/871b6d14-10aa-478d-b590-94f262ecfa99",
+        "parameters": {
+          "tagName": { "value": "CostCentre" }
+        },
+        "groupNames": ["Resource-Tags"]
+      },
+      {
+        "policyDefinitionReferenceId": "PD-Custom-Tagging-Criticality-001",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/871b6d14-10aa-478d-b590-94f262ecfa99",
+        "parameters": {
+          "tagName": { "value": "Criticality" }
+        },
+        "groupNames": ["Resource-Tags"]
+      }
+    ],
+    "policyDefinitionGroups": [
+      {
+        "name": "Resource-Tags",
+        "displayName": "Mandatory Resource Tags",
+        "description": "Group for mandatory tags on resources."
+      }
+    ]
+  }
+}

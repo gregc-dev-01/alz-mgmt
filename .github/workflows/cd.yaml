@@ -1,9 +1,14 @@
 ---
 name: 02 Azure Landing Zones Continuous Delivery
+
 on:
   push:
     branches:
       - main
+    paths:
+      - '01_platform_connectivity/**'
+      - '02_platform_management/**'
+      - '03_platform_identity/**'
   workflow_dispatch:
     inputs:
       terraform_action:
@@ -21,13 +26,50 @@ on:
         type: string
 
 jobs:
+  discover:
+    name: Discover changed modules
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ github.event.pull_request.base.sha || github.event.before }}
+          head: ${{ github.event.pull_request.head.sha || github.sha }}
+          filters: |
+            connectivity:
+              - '01_platform_connectivity/**'
+            management:
+              - '02_platform_management/**'
+            identity:
+              - '03_platform_identity/**'
+      - name: Build matrix
+        id: set-matrix
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            modules=("01_platform_connectivity" "02_platform_management" "03_platform_identity")
+          else
+            modules=()
+            [ "${{ steps.changes.outputs.connectivity }}" = "true" ] && modules+=("01_platform_connectivity")
+            [ "${{ steps.changes.outputs.management }}" = "true" ] && modules+=("02_platform_management")
+            [ "${{ steps.changes.outputs.identity }}" = "true" ] && modules+=("03_platform_identity")
+          fi
+          printf -v joined '"%s",' "${modules[@]}"; joined="${joined%,}"
+          echo "matrix={\"module\":[${joined}]}" >> "$GITHUB_OUTPUT"
+
   plan_and_apply:
-    uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
-    name: 'CD'
+    name: CD • ${{ matrix.module }}
+    needs: discover
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
     permissions:
       id-token: write
       contents: read
+    uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
     with:
-      terraform_action: ${{ inputs.terraform_action }}
-      root_module_folder_relative_path: '.'
-      terraform_cli_version: ${{ inputs.terraform_cli_version }}
+      terraform_action: ${{ github.event_name == 'workflow_dispatch' && inputs.terraform_action || 'apply' }}
+      root_module_folder_relative_path: ${{ matrix.module }}
+      terraform_cli_version: ${{ github.event_name == 'workflow_dispatch' && inputs.terraform_cli_version || 'latest' }}
