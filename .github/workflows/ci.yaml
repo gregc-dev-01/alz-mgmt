@@ -6,9 +6,8 @@ on:
     branches:
       - main
     paths:
-      - '01_platform_connectivity/**'
-      - '02_platform_management/**'
-      - '03_platform_identity/**'
+      - '**/*.tf'
+      - '!**/.github/**'
   workflow_dispatch:
     inputs:
       terraform_cli_version:
@@ -19,42 +18,12 @@ on:
 
 jobs:
   discover:
-    name: Discover changed modules
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          # Use PR base/head when available, otherwise fall back to push SHAs
-          base: ${{ github.event.pull_request.base.sha || github.event.before }}
-          head: ${{ github.event.pull_request.head.sha || github.sha }}
-          filters: |
-            connectivity:
-              - '01_platform_connectivity/**'
-            management:
-              - '02_platform_management/**'
-            identity:
-              - '03_platform_identity/**'
-      - name: Build matrix
-        id: set-matrix
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            modules=("01_platform_connectivity" "02_platform_management" "03_platform_identity")
-          else
-            modules=()
-            [ "${{ steps.changes.outputs.connectivity }}" = "true" ] && modules+=("01_platform_connectivity")
-            [ "${{ steps.changes.outputs.management }}" = "true" ] && modules+=("02_platform_management")
-            [ "${{ steps.changes.outputs.identity }}" = "true" ] && modules+=("03_platform_identity")
-          fi
-          printf -v joined '"%s",' "${modules[@]}"; joined="${joined%,}"
-          echo "matrix={\"module\":[${joined}]}" >> "$GITHUB_OUTPUT"
+    uses: gregc-dev-01/alz-mgmt/.github/workflows/_discover-modules.yaml@main
 
   validate_and_plan:
     name: CI • ${{ matrix.module }}
     needs: discover
+    if: ${{ needs.discover.outputs.count != '0' }} # avoid empty-matrix error
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
@@ -65,5 +34,4 @@ jobs:
     uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
     with:
       root_module_folder_relative_path: ${{ matrix.module }}
-      # If not workflow_dispatch, fall back to latest
       terraform_cli_version: ${{ github.event_name == 'workflow_dispatch' && inputs.terraform_cli_version || 'latest' }}
