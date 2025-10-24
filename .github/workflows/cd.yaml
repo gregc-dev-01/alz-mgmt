@@ -30,7 +30,7 @@ jobs:
   # Auto: run for all modules on push
   plan_and_apply_auto:
     if: ${{ github.event_name == 'push' }}
-    name: CD • ${{ matrix.module }}
+    name: CD • ${{ matrix.module }} (auto)
     strategy:
       fail-fast: false
       matrix:
@@ -47,7 +47,7 @@ jobs:
   # Manual: run only the selected module
   plan_and_apply_manual:
     if: ${{ github.event_name == 'workflow_dispatch' }}
-    name: CD • ${{ matrix.module }}
+    name: CD • ${{ matrix.module }} (manual)
     strategy:
       fail-fast: false
       matrix:

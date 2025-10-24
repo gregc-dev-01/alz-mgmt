@@ -36,13 +36,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Resolve module directory (strip /**)
-        id: mod
-        shell: bash
-        run: |
-          raw="${{ inputs.root_module_folder_relative_path }}"
-          clean="${raw%%/**}"
-          echo "dir=$clean" >> "$GITHUB_OUTPUT"
+      - name: Resolve module dir & key
+        id: tf
+        uses: ./.github/actions/tf-paths
+        with:
+          path: ${{ inputs.root_module_folder_relative_path }}
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -52,11 +50,11 @@ jobs:
 
       - name: Terraform Init (remote backend)
         run: |
-          terraform -chdir="${{ steps.mod.outputs.dir }}" init \
+          terraform -chdir="${{ steps.tf.outputs.dir }}" init \
             -backend-config="resource_group_name=${{ vars.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}" \
-            -backend-config="key=terraform.tfstate"
+            -backend-config="key=${{ steps.tf.outputs.state_key }}"
 
       - name: Terraform Plan for ${{ inputs.terraform_action == 'destroy' && 'Destroy' || 'Apply' }}
         run: |
@@ -69,7 +67,7 @@ jobs:
         shell: pwsh
         run: |
           $stagingDirectory = "staging"
-          $rootModuleFolder = "${{ steps.mod.outputs.dir }}"
+          $rootModuleFolder = "${{ steps.tf.outputs.dir }}"
           New-Item -Path . -Name $stagingDirectory -ItemType "directory" | Out-Null
           Copy-Item -Path "./*" -Exclude @(".git", ".terraform", ".github",  $stagingDirectory) -Recurse -Destination "./$stagingDirectory"
           $rootModuleFolderTerraformFolder = Join-Path -Path "./$stagingDirectory" -ChildPath $rootModuleFolder -AdditionalChildPath ".terraform"
@@ -85,7 +83,7 @@ jobs:
 
       - name: Show the Plan for Review
         run: |
-          terraform -chdir="${{ steps.mod.outputs.dir }}" show tfplan
+          terraform -chdir="${{ steps.tf.outputs.dir }}" show tfplan
 
   apply:
     needs: plan
@@ -116,21 +114,19 @@ jobs:
           terraform_wrapper: false
           terraform_version: ${{ inputs.terraform_cli_version }}
 
-      - name: Resolve module directory (strip /**)
-        id: mod
-        shell: bash
-        run: |
-          raw="${{ inputs.root_module_folder_relative_path }}"
-          clean="${raw%%/**}"
-          echo "dir=$clean" >> "$GITHUB_OUTPUT"
+      - name: Resolve module dir & key
+        id: tf
+        uses: ./.github/actions/tf-paths
+        with:
+          path: ${{ inputs.root_module_folder_relative_path }}
 
       - name: Terraform Init (remote backend)
         run: |
-          terraform -chdir="${{ steps.mod.outputs.dir }}" init \
+          terraform -chdir="${{ steps.tf.outputs.dir }}" init \
             -backend-config="resource_group_name=${{ vars.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}" \
-            -backend-config="key=terraform.tfstate"
+            -backend-config="key=${{ steps.tf.outputs.state_key }}"
 
       - name: Terraform ${{ inputs.terraform_action == 'destroy' && 'Destroy' || 'Apply' }}
         run: |
