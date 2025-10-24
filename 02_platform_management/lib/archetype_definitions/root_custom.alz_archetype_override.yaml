@@ -1,0 +1,27 @@
+base_archetype: root
+name: root_custom
+policy_assignments_to_add:
+  [
+    'PA-Evri-Tagging-Baseline',
+    'PA-Evri-Compute-Baseline',
+    'PA-Evri-General-Baseline',
+    'PA-Evri-Sec-Baseline',
+    'PA-Evri-Storage-Baseline',
+    'PA-Evri-Cost-Baseline',
+  ]
+policy_assignments_to_remove: []
+policy_definitions_to_add: []
+policy_definitions_to_remove: []
+policy_set_definitions_to_add:
+  [
+    'PI-Evri-Tagging-Baseline',
+    'PI-Evri-Compute-Baseline',
+    'PI-Evri-General-Baseline',
+    'PI-Evri-Sec-Baseline',
+    'PI-Evri-Storage-Baseline',
+    'PI-Evri-Net-Sec-Baseline',
+    'PI-Evri-Cost-Baseline',
+  ]
+policy_set_definitions_to_remove: []
+role_definitions_to_add: []
+role_definitions_to_remove: []
