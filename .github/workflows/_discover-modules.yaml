@@ -1,0 +1,100 @@
+name: _discover-modules
+
+on:
+  workflow_call:
+    outputs:
+      matrix:
+        description: 'JSON like {"module":["01_x","02_y"]}'
+        value: ${{ jobs.discover.outputs.matrix }}
+      count:
+        description: 'number of modules detected'
+        value: ${{ jobs.discover.outputs.count }}
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      count: ${{ steps.set.outputs.count }}
+    steps:
+      - name: Checkout (for repo scan on manual runs)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build module matrix from changed files
+        id: set
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const modules = new Set();
+
+            // helper: extract top-level dir from a repo-relative path
+            function topLevelDir(p) {
+              // normalize windows backslashes just in case
+              p = p.replace(/\\/g, '/');
+              const seg = p.split('/')[0];
+              return seg;
+            }
+
+            // ignore these top-level dirs if they show up
+            const IGNORE = new Set(['.github', '.git', '.terraform', 'staging']);
+
+            async function addFromFiles(files) {
+              for (const f of files) {
+                const filename = f.filename || f; // PR vs compare API shapes
+                if (!filename.endsWith('.tf')) continue; // only terraform changes
+                const dir = topLevelDir(filename);
+                if (dir && !IGNORE.has(dir)) modules.add(dir);
+              }
+            }
+
+            if (context.eventName === 'pull_request') {
+              const number = context.payload.pull_request.number;
+              for await (const { data: files } of github.paginate.iterator(
+                github.rest.pulls.listFiles, {
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  pull_number: number, per_page: 100
+                }
+              )) {
+                await addFromFiles(files);
+              }
+            } else if (context.eventName === 'push') {
+              const before = context.payload.before;
+              const head = context.sha;
+              const { data } = await github.rest.repos.compareCommits({
+                owner: context.repo.owner, repo: context.repo.repo, base: before, head
+              });
+              await addFromFiles(data.files || []);
+            } else {
+              // workflow_dispatch or other: scan top-level dirs that contain .tf
+              const fs = require('fs');
+              const path = require('path');
+              for (const e of fs.readdirSync(process.cwd(), { withFileTypes: true })) {
+                if (!e.isDirectory()) continue;
+                if (IGNORE.has(e.name)) continue;
+                // shallow scan: does this folder have any .tf somewhere?
+                const walk = (dir, depth=0) => {
+                  if (depth > 3) return false; // keep it cheap
+                  for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+                    const p = path.join(dir, f.name);
+                    if (f.isDirectory()) {
+                      if (f.name === '.terraform') continue;
+                      if (walk(p, depth+1)) return true;
+                    } else if (p.endsWith('.tf')) {
+                      return true;
+                    }
+                  }
+                  return false;
+                };
+                if (walk(path.join(process.cwd(), e.name))) modules.add(e.name);
+              }
+            }
+
+            const arr = Array.from(modules);
+            core.setOutput('matrix', JSON.stringify({ module: arr }));
+            core.setOutput('count', String(arr.length));
