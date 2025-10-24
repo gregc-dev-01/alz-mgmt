@@ -6,9 +6,9 @@ on:
     branches: [main]
     # EDIT THIS LIST ONCE (CD)
     paths: &cd_modules
-      - 'azure_platform_identity_tf/**'
-      - 'azure_platform_management_tf/**'
-      - 'azure_platform_shared_hub_tf/**'
+      - '01_platform_connectivity/**'
+      - '02_platform_management/**'
+      - '03_platform_identity/**'
   workflow_dispatch:
     inputs:
       module:
