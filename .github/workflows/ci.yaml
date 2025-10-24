@@ -24,7 +24,7 @@ jobs:
   # Auto: run all modules that matched paths on PRs
   validate_and_plan_auto:
     if: ${{ github.event_name == 'pull_request' }}
-    name: CI • ${{ matrix.module }}
+    name: CI • ${{ matrix.module }} (auto)
     strategy:
       fail-fast: false
       matrix:
@@ -41,7 +41,7 @@ jobs:
   # Manual: run only the selected module
   validate_and_plan_manual:
     if: ${{ github.event_name == 'workflow_dispatch' }}
-    name: CI • ${{ matrix.module }}
+    name: CI • ${{ matrix.module }} (manual)
     strategy:
       fail-fast: false
       matrix:

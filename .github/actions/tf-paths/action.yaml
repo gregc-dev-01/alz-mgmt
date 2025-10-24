@@ -1,0 +1,29 @@
+name: tf-paths
+description: Resolve Terraform module dir and backend key from a path that may end with "/**"
+inputs:
+  path:
+    description: 'Module path (e.g., "01_platform_connectivity/**" or "02_platform_management")'
+    required: true
+outputs:
+  dir:
+    description: 'Sanitized module directory'
+    value: ${{ steps.calc.outputs.dir }}
+  state_key:
+    description: 'Per-module backend key'
+    value: ${{ steps.calc.outputs.state_key }}
+runs:
+  using: 'composite'
+  steps:
+    - id: calc
+      shell: bash
+      run: |
+        raw="${{ inputs.path }}"
+        dir="${raw%%/**}"           # strip any trailing /** from anchor-powered list
+        dir="${dir#./}"; dir="${dir%/}"
+        if [ -z "$dir" ] || [ "$dir" = "." ]; then
+          key="root/terraform.tfstate"
+        else
+          key="$dir/terraform.tfstate"
+        fi
+        echo "dir=$dir" >> "$GITHUB_OUTPUT"
+        echo "state_key=$key" >> "$GITHUB_OUTPUT"
