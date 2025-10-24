@@ -32,8 +32,8 @@ custom_replacements = {
     # Resource group names
     connectivity_hub_vwan_resource_group_name    = "rg-evri-shared-hub-prod-$${starter_location_01}-network-001"
     connectivity_hub_primary_resource_group_name = "rg-evri-shared-hub-prod-$${starter_location_01}-network-001"
-    dns_resource_group_name                      = "rg-hub-dns-$${starter_location_01}"
-    ddos_resource_group_name                     = "rg-hub-ddos-$${starter_location_01}"
+    dns_resource_group_name                      = "rg-evri-shared-hub-prod-$${starter_location_01}-dns-001"
+    ddos_resource_group_name                     = "rg-evri-shared-hub-prod-$${starter_location_01}-ddos-001"
 
     # Resource names
     ddos_protection_plan_name               = "ddos-$${starter_location_01}"
@@ -52,15 +52,15 @@ custom_replacements = {
     primary_sidecar_virtual_network_enabled               = false
 
     # Resource names primary connectivity
-    primary_hub_name                                   = "vhub-evri-shared-hub-prod-$${starter_location_01}-001"
-    primary_sidecar_virtual_network_name               = "vnet-evri-shared-hub-sidecar-prod-$${starter_location_01}-001"
-    primary_firewall_name                              = "fw-hub-$${starter_location_01}"
-    primary_firewall_policy_name                       = "fwp-hub-$${starter_location_01}"
-    primary_virtual_network_gateway_express_route_name = "vgw-hub-er-$${starter_location_01}"
-    primary_virtual_network_gateway_vpn_name           = "vgw-hub-vpn-$${starter_location_01}"
-    primary_private_dns_resolver_name                  = "pdr-hub-dns-$${starter_location_01}"
-    primary_bastion_host_name                          = "bas-hub-$${starter_location_01}"
-    primary_bastion_host_public_ip_name                = "pip-bastion-hub-$${starter_location_01}"
+    primary_hub_name                                   = "vhub-evri-shared-hub-prod-$${starter_location_01}-network-001"
+    primary_sidecar_virtual_network_name               = "vnet-evri-shared-hub-sidecar-prod-$${starter_location_01}-network-001"
+    primary_firewall_name                              = "fw-evri-shared-hub-$${starter_location_01}-network-001"
+    primary_firewall_policy_name                       = "fwp-evri-shared-hub-$${starter_location_01}-network-001"
+    primary_virtual_network_gateway_express_route_name = "vgw-evri-shared-hub-$${starter_location_01}-network-001"
+    primary_virtual_network_gateway_vpn_name           = "vgw-evri-shared-hub-$${starter_location_01}-network-001"
+    primary_private_dns_resolver_name                  = "pdr-evri-shared-hub-dns-$${starter_location_01}-network-001"
+    primary_bastion_host_name                          = "bas-evri-shared-hub-$${starter_location_01}-network-001"
+    primary_bastion_host_public_ip_name                = "pip-bastion-evri-shared-hub-$${starter_location_01}-network-001"
 
     # Private DNS Zones primary
     primary_auto_registration_zone_name = "$${starter_location_01}.azure.local"
