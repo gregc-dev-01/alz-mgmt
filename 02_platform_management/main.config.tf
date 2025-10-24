@@ -12,7 +12,7 @@ module "config" {
 
   custom_replacements = var.custom_replacements
 
-  management_resource_settings        = var.management_resource_settings
-  management_group_settings           = var.management_group_settings
-  tags                                = var.tags
+  management_resource_settings = var.management_resource_settings
+  management_group_settings    = var.management_group_settings
+  tags                         = var.tags
 }

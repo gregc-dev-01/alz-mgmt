@@ -6,7 +6,7 @@ locals {
 # Build policy dependencies
 locals {
   management_group_dependencies = {
-    policy_assignments = [module.management_resources]
+    policy_assignments      = [module.management_resources]
     policy_role_assignments = [module.management_resources]
   }
 }
