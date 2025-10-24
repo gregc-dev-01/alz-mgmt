@@ -7,7 +7,6 @@ on:
     paths: &ci_modules
       - '01_platform_connectivity/**'
       - '02_platform_management/**'
-      - '03_platform_identity/**'
   workflow_dispatch:
     inputs:
       module:

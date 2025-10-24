@@ -52,5 +52,3 @@ provider "azapi" {
   skip_provider_registration = true
   subscription_id            = var.subscription_ids["connectivity"]
 }
-
-# test
