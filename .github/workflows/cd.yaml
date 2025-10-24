@@ -4,19 +4,24 @@ name: 02 Azure Landing Zones Continuous Delivery
 on:
   push:
     branches: [main]
-    paths:
-      - '**/*.tf'
-      - '!**/.github/**'
+    # EDIT THIS LIST ONCE (CD)
+    paths: &cd_modules
+      - 'azure_platform_identity_tf/**'
+      - 'azure_platform_management_tf/**'
+      - 'azure_platform_shared_hub_tf/**'
   workflow_dispatch:
     inputs:
+      module:
+        description: 'Which module directory to run'
+        required: true
+        type: choice
+        options: *cd_modules
       terraform_action:
         description: 'Terraform Action to perform'
         required: true
         default: 'apply'
         type: choice
-        options:
-          - 'apply'
-          - 'destroy'
+        options: ['apply', 'destroy']
       terraform_cli_version:
         description: 'Terraform CLI Version'
         required: true
@@ -24,21 +29,20 @@ on:
         type: string
 
 jobs:
-  discover:
-    uses: gregc-dev-01/alz-mgmt/.github/workflows/_discover-modules.yaml@main
-
   plan_and_apply:
     name: CD • ${{ matrix.module }}
-    needs: discover
-    if: ${{ needs.discover.outputs.count != '0' }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      matrix:
+        module: *cd_modules
+    # manual run => only the selected module; push run => all matrix entries
+    if: ${{ github.event_name != 'workflow_dispatch' || matrix.module == github.event.inputs.module }}
     permissions:
       id-token: write
       contents: read
     uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
     with:
-      terraform_action: ${{ github.event_name == 'workflow_dispatch' && inputs.terraform_action || 'apply' }}
+      # sanitized in the template to strip "/**"
       root_module_folder_relative_path: ${{ matrix.module }}
-      terraform_cli_version: ${{ github.event_name == 'workflow_dispatch' && inputs.terraform_cli_version || 'latest' }}
+      terraform_action: ${{ github.event.inputs.terraform_action || 'apply' }}
+      terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}

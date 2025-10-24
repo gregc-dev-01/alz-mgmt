@@ -3,13 +3,18 @@ name: 01 Azure Landing Zones Continuous Integration
 
 on:
   pull_request:
-    branches:
-      - main
-    paths:
-      - '**/*.tf'
-      - '!**/.github/**'
+    branches: [main]
+    paths: &ci_modules
+      - 'azure_platform_identity_tf/**'
+      - 'azure_platform_management_tf/**'
+      - 'azure_platform_shared_hub_tf/**'
   workflow_dispatch:
     inputs:
+      module:
+        description: 'Which module directory to run'
+        required: true
+        type: choice
+        options: *ci_modules
       terraform_cli_version:
         description: 'Terraform CLI Version'
         required: true
@@ -17,21 +22,20 @@ on:
         type: string
 
 jobs:
-  discover:
-    uses: gregc-dev-01/alz-mgmt/.github/workflows/_discover-modules.yaml@main
-
   validate_and_plan:
     name: CI • ${{ matrix.module }}
-    needs: discover
-    if: ${{ needs.discover.outputs.count != '0' }} # avoid empty-matrix error
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      matrix:
+        module: *ci_modules
+    # manual run => only the selected module; PR run => all matrix entries
+    if: ${{ github.event_name != 'workflow_dispatch' || matrix.module == github.event.inputs.module }}
     permissions:
       id-token: write
       contents: read
       pull-requests: write
     uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
     with:
+      # sanitized in the template to strip "/**"
       root_module_folder_relative_path: ${{ matrix.module }}
-      terraform_cli_version: ${{ github.event_name == 'workflow_dispatch' && inputs.terraform_cli_version || 'latest' }}
+      terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
