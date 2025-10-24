@@ -4,11 +4,9 @@ name: 02 Azure Landing Zones Continuous Delivery
 on:
   push:
     branches: [main]
-    # EDIT THIS LIST ONCE (CD)
     paths: &cd_modules
       - '01_platform_connectivity/**'
       - '02_platform_management/**'
-      - '03_platform_identity/**'
   workflow_dispatch:
     inputs:
       module:
