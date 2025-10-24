@@ -14,7 +14,7 @@ on:
 
 jobs:
   validate_and_plan:
-    uses: gregc-dev-01/alz-mgmt-templates/.github/workflows/ci-template.yaml@main
+    uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
     name: 'CI'
     permissions:
       id-token: write
