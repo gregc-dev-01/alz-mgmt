@@ -1,3 +1,4 @@
+---
 name: Continuous Delivery
 
 on:
@@ -41,6 +42,15 @@ jobs:
         uses: ./.github/actions/tf-paths
         with:
           path: ${{ inputs.root_module_folder_relative_path }}
+
+      # Add this to strip '/**' like in CI
+      - name: Resolve module directory (strip /**)
+        id: mod
+        shell: bash
+        run: |
+          raw="${{ inputs.root_module_folder_relative_path }}"
+          clean="${raw%%/**}"
+          echo "dir=$clean" >> "$GITHUB_OUTPUT"
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -107,12 +117,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: module
+          path: module
 
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_wrapper: false
-          terraform_version: ${{ inputs.terraform_cli_version }}
+      # Needed so the local action exists
+      - name: Checkout Code (for local actions)
+        uses: actions/checkout@v4
 
       - name: Resolve module dir & key
         id: tf
@@ -120,9 +129,21 @@ jobs:
         with:
           path: ${{ inputs.root_module_folder_relative_path }}
 
+      - name: Resolve module dir & key
+        id: tf
+        uses: ./.github/actions/tf-paths
+        with:
+          path: ${{ inputs.root_module_folder_relative_path }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+          terraform_version: ${{ inputs.terraform_cli_version }}
+
       - name: Terraform Init (remote backend)
         run: |
-          terraform -chdir="${{ steps.tf.outputs.dir }}" init \
+          terraform -chdir="module/${{ steps.mod.outputs.dir }}" init \
             -backend-config="resource_group_name=${{ vars.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}" \
@@ -130,4 +151,4 @@ jobs:
 
       - name: Terraform ${{ inputs.terraform_action == 'destroy' && 'Destroy' || 'Apply' }}
         run: |
-          terraform -chdir="${{ steps.mod.outputs.dir }}" apply -input=false -auto-approve tfplan
+          terraform -chdir="module/${{ steps.mod.outputs.dir }}" apply -input=false -auto-approve tfplan
