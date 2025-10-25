@@ -31,9 +31,9 @@ jobs:
     strategy:
       matrix: { module: *ci_modules }
     permissions:
-      id-token: write # OIDC for Terraform auth
-      contents: read # checkout inside the callee
-      pull-requests: write # PR comment in the callee
+      id-token: write
+      contents: read
+      pull-requests: write
     uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
     with:
       root_module_folder_relative_path: ${{ matrix.module }}
