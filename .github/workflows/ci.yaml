@@ -46,30 +46,20 @@ jobs:
     needs: gate
     name: CI • ${{ matrix.module }} (auto)
     strategy:
-      fail-fast: false
-      matrix:
-        module: *ci_modules
-    permissions:
-      id-token: write
-      contents: read
-      pull-requests: write
-    uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
-    with:
-      root_module_folder_relative_path: ${{ matrix.module }} # template strips '/**'
-      terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
-
-  validate_and_plan_manual:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    name: CI • ${{ matrix.module }} (manual)
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ['${{ github.event.inputs.module }}']
-    permissions:
-      id-token: write
-      contents: read
-      pull-requests: write
+      matrix: { module: *ci_modules }
     uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
     with:
       root_module_folder_relative_path: ${{ matrix.module }}
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
+      base_ref: ${{ github.event.pull_request.base.sha }}
+      head_ref: ${{ github.event.pull_request.head.sha }}
+
+  validate_and_plan_manual:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    strategy:
+      matrix: { module: ['${{ github.event.inputs.module }}'] }
+    uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
+    with:
+      root_module_folder_relative_path: ${{ matrix.module }}
+      terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
+      skip_change_detection: true
