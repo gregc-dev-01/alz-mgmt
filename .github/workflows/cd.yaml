@@ -30,6 +30,7 @@ on:
         default: 'latest'
         type: string
 
+# .github/workflows/cd.yaml (auto job)
 jobs:
   plan_and_apply_auto:
     if: ${{ github.event_name == 'push' }}
