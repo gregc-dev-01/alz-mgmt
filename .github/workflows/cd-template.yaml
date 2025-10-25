@@ -14,9 +14,9 @@ jobs:
   gate:
     name: Detect changes
     runs-on: ubuntu-latest
+    environment: alz-mgmt-plan
     permissions:
       contents: read
-      id-token: none
     outputs:
       changed: ${{ steps.out.outputs.changed }}
     steps:
