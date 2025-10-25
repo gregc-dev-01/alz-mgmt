@@ -12,6 +12,8 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       changed: ${{ steps.out.outputs.changed }}
     steps:
