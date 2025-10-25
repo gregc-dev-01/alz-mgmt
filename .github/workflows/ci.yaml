@@ -1,11 +1,6 @@
 ---
 name: 01 Azure Landing Zones Continuous Integration
 
-permissions:
-  contents: read # needed so the callee can checkout
-  pull-requests: write # callee posts PR comment
-  id-token: write # callee requests OIDC for TF auth
-
 on:
   pull_request:
     branches: [main]
@@ -31,15 +26,14 @@ jobs:
     strategy:
       matrix: { module: *ci_modules }
     permissions:
-      id-token: write # OIDC for Terraform auth
-      contents: read # checkout inside the callee
-      pull-requests: write # PR comment in the callee
+      id-token: write
+      contents: read
+      pull-requests: write
     uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
     with:
       root_module_folder_relative_path: ${{ matrix.module }}
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
       base_ref: ${{ github.event.pull_request.base.sha }}
-      head_ref: ${{ github.event.pull_request.head.sha }}
 
   validate_and_plan_manual:
     if: ${{ github.event_name == 'workflow_dispatch' }}

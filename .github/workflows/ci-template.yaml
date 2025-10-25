@@ -7,12 +7,14 @@ on:
       root_module_folder_relative_path: { type: string, default: '.' }
       terraform_cli_version: { type: string, default: 'latest' }
       base_ref: { type: string, default: '' }
-      head_ref: { type: string, default: '' }
       skip_change_detection: { type: boolean, default: false }
 
 jobs:
   gate:
     runs-on: ubuntu-latest
+    environment: alz-mgmt-plan
+    permissions:
+      contents: read
     outputs:
       changed: ${{ steps.out.outputs.changed }}
     steps:
