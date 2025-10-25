@@ -4,18 +4,11 @@ name: Continuous Delivery
 on:
   workflow_call:
     inputs:
-      terraform_action:
-        description: 'Terraform Action to perform'
-        default: 'apply'
-        type: string
-      root_module_folder_relative_path:
-        description: 'Root Module Folder Relative Path'
-        default: '.'
-        type: string
-      terraform_cli_version:
-        description: 'Terraform CLI Version'
-        default: 'latest'
-        type: string
+      terraform_action: { type: string, default: 'apply' }
+      root_module_folder_relative_path: { type: string, default: '.' }
+      terraform_cli_version: { type: string, default: 'latest' }
+      base_ref: { type: string, default: '' }
+      skip_change_detection: { type: boolean, default: false }
 
 jobs:
   gate:
