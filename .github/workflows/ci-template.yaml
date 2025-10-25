@@ -34,7 +34,6 @@ jobs:
         run: |
           val="${{ steps.skip.outputs.this || steps.filter.outputs.this }}"
           echo "changed=$val" >> "$GITHUB_OUTPUT"
-
   validate:
     name: Validate Terraform
     if: ${{ needs.gate.outputs.changed == 'true' }}

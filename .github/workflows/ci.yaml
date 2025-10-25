@@ -23,28 +23,6 @@ on:
 jobs:
   validate_and_plan_auto:
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: *ci_modules
-    outputs:
-      changed: ${{ steps.filter.outputs.this }}
-    steps:
-      - id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # Only check the *current* matrix module; no need to list them again
-          filters: |
-            this:
-              - '${{ matrix.module }}'
-
-  # Auto: run reusable CI only for modules that changed
-  validate_and_plan_auto:
-    if: ${{ github.event_name == 'pull_request' && needs.gate.outputs.changed == 'true' }}
-    needs: gate
-    name: CI • ${{ matrix.module }} (auto)
     strategy:
       matrix: { module: *ci_modules }
     uses: gregc-dev-01/alz-mgmt/.github/workflows/ci-template.yaml@main
