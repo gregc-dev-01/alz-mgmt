@@ -26,54 +26,27 @@ on:
         default: 'latest'
         type: string
 
+# .github/workflows/cd.yaml (auto job)
 jobs:
   plan_and_apply_auto:
     if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
-      matrix:
-        module: *cd_modules
-    outputs:
-      changed: ${{ steps.filter.outputs.this }}
-    steps:
-      - id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          filters: |
-            this:
-              - '${{ matrix.module }}'
-
-  plan_and_apply_auto:
-    if: ${{ github.event_name == 'push' && needs.gate.outputs.changed == 'true' }}
-    needs: gate
-    name: CD • ${{ matrix.module }} (auto)
-    strategy:
-      fail-fast: false
-      matrix:
-        module: *cd_modules
-    permissions:
-      id-token: write
-      contents: read
+      matrix: { module: *cd_modules }
     uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
     with:
       root_module_folder_relative_path: ${{ matrix.module }}
       terraform_action: ${{ github.event.inputs.terraform_action || 'apply' }}
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
+      base_ref: ${{ github.event.before }}
+      head_ref: ${{ github.sha }}
 
   plan_and_apply_manual:
     if: ${{ github.event_name == 'workflow_dispatch' }}
-    name: CD • ${{ matrix.module }} (manual)
     strategy:
-      fail-fast: false
-      matrix:
-        module: ['${{ github.event.inputs.module }}']
-    permissions:
-      id-token: write
-      contents: read
+      matrix: { module: ['${{ github.event.inputs.module }}'] }
     uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
     with:
       root_module_folder_relative_path: ${{ matrix.module }}
       terraform_action: ${{ github.event.inputs.terraform_action || 'apply' }}
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
+      skip_change_detection: true
