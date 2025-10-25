@@ -128,27 +128,55 @@ jobs:
       - name: Add plan to job summary
         shell: bash
         run: |
-          # Derive simple counts for the summary (requires jq, available on ubuntu-latest)
+          # Counts
           creates=$(jq '[.resource_changes[] | select(.change.actions | index("create"))] | length' tfplan.json)
           updates=$(jq '[.resource_changes[] | select(.change.actions | index("update"))] | length' tfplan.json)
           deletes=$(jq '[.resource_changes[] | select(.change.actions | index("delete"))] | length' tfplan.json)
+          replaces=$(jq '[.resource_changes[] | select((.change.actions == ["delete","create"]) or (.change.actions == ["create","delete"]))] | length' tfplan.json)
           total=$((creates + updates + deletes))
 
-          {
-            echo "## Terraform Plan for \`${{ steps.mod.outputs.dir }}\`"
-            echo ""
-            echo "- **Action:** \`${{ inputs.terraform_action }}\`"
-            echo "- **Changes:** $total  (**Creates:** $creates, **Updates:** $updates, **Deletes:** $deletes)"
-            echo ""
-            echo "<details><summary>Full plan (first 400 lines)</summary>"
-            echo ""
-            echo '```diff'
-            sed -n '1,400p' tfplan.txt
-            echo '```'
-            echo ""
-            echo "_(truncated to first 400 lines — see logs for full output)_"
-            echo "</details>"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "## Terraform Plan for \`${{ steps.mod.outputs.dir }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$total" -eq 0 ]; then
+            echo "> ✅ No changes. Your infrastructure matches the configuration." >> "$GITHUB_STEP_SUMMARY"
+          else
+            # Totals table
+            {
+              echo "| Action     | Count |"
+              echo "|------------|------:|"
+              echo "| ➕ Create  | $creates |"
+              echo "| ♻️ Replace | $replaces |"
+              echo "| ✏️ Update  | $updates |"
+              echo "| ❌ Delete  | $deletes |"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            # Top changed resources (address and action)
+            echo "<details><summary>Changed resources (top 20)</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            jq -r '
+              .resource_changes[]
+              | {addr: .address, acts: (.change.actions | join(","))}
+              | select(.acts | test("create|update|delete"))
+              | "- \(.addr) [\(.acts)]"
+            ' tfplan.json | head -n 20 >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            # Pretty diff block (first 400 lines)
+            {
+              echo "<details><summary>Full plan (first 400 lines)</summary>"
+              echo ""
+              echo '```diff'
+              sed -n '1,400p' tfplan.txt
+              echo '```'
+              echo ""
+              echo "_(truncated — see logs for full output)_"
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Show the Plan for Review
         run: terraform -chdir="${{ steps.mod.outputs.dir }}" show tfplan
