@@ -27,7 +27,7 @@ on:
         type: string
 
 jobs:
-  gate:
+  plan_and_apply_auto:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     strategy:

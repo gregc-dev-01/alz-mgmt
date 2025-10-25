@@ -18,8 +18,24 @@ on:
         type: string
 
 jobs:
+  gate:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.filter.outputs.this }}
+    steps:
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            this:
+              - '${{ inputs.root_module_folder_relative_path }}'
+
   plan:
     name: Plan with Terraform
+    if: ${{ needs.gate.outputs.changed == 'true' }}
+    needs: gate
     runs-on: ubuntu-latest
     concurrency: mgmt-tfstate-${{ inputs.root_module_folder_relative_path }}
     environment: alz-mgmt-plan
@@ -38,12 +54,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Resolve module dir & key
-        id: tf
+        id: tfmeta_plan
         uses: ./.github/actions/tf-paths
         with:
           path: ${{ inputs.root_module_folder_relative_path }}
 
-      # Add this to strip '/**' like in CI
       - name: Resolve module directory (strip /**)
         id: mod
         shell: bash
@@ -60,11 +75,11 @@ jobs:
 
       - name: Terraform Init (remote backend)
         run: |
-          terraform -chdir="${{ steps.tf.outputs.dir }}" init \
+          terraform -chdir="${{ steps.mod.outputs.dir }}" init \
             -backend-config="resource_group_name=${{ vars.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}" \
-            -backend-config="key=${{ steps.tf.outputs.state_key }}"
+            -backend-config="key=${{ steps.tfmeta_plan.outputs.state_key }}"
 
       - name: Terraform Plan for ${{ inputs.terraform_action == 'destroy' && 'Destroy' || 'Apply' }}
         run: |
@@ -77,7 +92,7 @@ jobs:
         shell: pwsh
         run: |
           $stagingDirectory = "staging"
-          $rootModuleFolder = "${{ steps.tf.outputs.dir }}"
+          $rootModuleFolder = "${{ steps.mod.outputs.dir }}"
           New-Item -Path . -Name $stagingDirectory -ItemType "directory" | Out-Null
           Copy-Item -Path "./*" -Exclude @(".git", ".terraform", ".github",  $stagingDirectory) -Recurse -Destination "./$stagingDirectory"
           $rootModuleFolderTerraformFolder = Join-Path -Path "./$stagingDirectory" -ChildPath $rootModuleFolder -AdditionalChildPath ".terraform"
@@ -92,12 +107,12 @@ jobs:
           path: ./staging/
 
       - name: Show the Plan for Review
-        run: |
-          terraform -chdir="${{ steps.tf.outputs.dir }}" show tfplan
+        run: terraform -chdir="${{ steps.mod.outputs.dir }}" show tfplan
 
   apply:
-    needs: plan
     name: Apply with Terraform
+    if: ${{ needs.gate.outputs.changed == 'true' }}
+    needs: plan
     runs-on: ubuntu-latest
     concurrency: mgmt-tfstate-${{ inputs.root_module_folder_relative_path }}
     environment: alz-mgmt-apply
@@ -119,21 +134,22 @@ jobs:
           name: module
           path: module
 
-      # Needed so the local action exists
       - name: Checkout Code (for local actions)
         uses: actions/checkout@v4
 
       - name: Resolve module dir & key
-        id: tf
+        id: tfmeta_apply
         uses: ./.github/actions/tf-paths
         with:
           path: ${{ inputs.root_module_folder_relative_path }}
 
-      - name: Resolve module dir & key
-        id: tf
-        uses: ./.github/actions/tf-paths
-        with:
-          path: ${{ inputs.root_module_folder_relative_path }}
+      - name: Resolve module directory (strip /**)
+        id: mod
+        shell: bash
+        run: |
+          raw="${{ inputs.root_module_folder_relative_path }}"
+          clean="${raw%%/**}"
+          echo "dir=$clean" >> "$GITHUB_OUTPUT"
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -147,7 +163,7 @@ jobs:
             -backend-config="resource_group_name=${{ vars.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ vars.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}" \
-            -backend-config="key=${{ steps.tf.outputs.state_key }}"
+            -backend-config="key=${{ steps.tfmeta_apply.outputs.state_key }}"
 
       - name: Terraform ${{ inputs.terraform_action == 'destroy' && 'Destroy' || 'Apply' }}
         run: |

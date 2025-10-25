@@ -21,8 +21,7 @@ on:
         type: string
 
 jobs:
-  # Gate: per-module change check
-  gate:
+  validate_and_plan_auto:
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     strategy:
@@ -59,7 +58,6 @@ jobs:
       root_module_folder_relative_path: ${{ matrix.module }} # template strips '/**'
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
 
-  # Manual: unchanged
   validate_and_plan_manual:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     name: CI • ${{ matrix.module }} (manual)
