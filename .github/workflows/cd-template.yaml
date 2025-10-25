@@ -14,6 +14,7 @@ jobs:
   gate:
     name: Detect changes
     runs-on: ubuntu-latest
+    environment: alz-mgmt-plan
     permissions:
       contents: read
     outputs:

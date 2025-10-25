@@ -12,6 +12,7 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    environment: alz-mgmt-plan
     permissions:
       contents: read
     outputs:
