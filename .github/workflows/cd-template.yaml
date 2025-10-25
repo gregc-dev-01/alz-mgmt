@@ -117,6 +117,39 @@ jobs:
           name: module-${{ steps.mod.outputs.dir }} # <-- unique per module
           path: ./staging/
 
+      - name: Save plan as text & JSON
+        shell: bash
+        run: |
+          # Plain text (nice to read in a code block)
+          terraform -chdir="${{ steps.mod.outputs.dir }}" show -no-color tfplan > tfplan.txt
+          # JSON (so we can count actions)
+          terraform -chdir="${{ steps.mod.outputs.dir }}" show -json tfplan > tfplan.json
+
+      - name: Add plan to job summary
+        shell: bash
+        run: |
+          # Derive simple counts for the summary (requires jq, available on ubuntu-latest)
+          creates=$(jq '[.resource_changes[] | select(.change.actions | index("create"))] | length' tfplan.json)
+          updates=$(jq '[.resource_changes[] | select(.change.actions | index("update"))] | length' tfplan.json)
+          deletes=$(jq '[.resource_changes[] | select(.change.actions | index("delete"))] | length' tfplan.json)
+          total=$((creates + updates + deletes))
+
+          {
+            echo "## Terraform Plan for \`${{ steps.mod.outputs.dir }}\`"
+            echo ""
+            echo "- **Action:** \`${{ inputs.terraform_action }}\`"
+            echo "- **Changes:** $total  (**Creates:** $creates, **Updates:** $updates, **Deletes:** $deletes)"
+            echo ""
+            echo "<details><summary>Full plan (first 400 lines)</summary>"
+            echo ""
+            echo '```diff'
+            sed -n '1,400p' tfplan.txt
+            echo '```'
+            echo ""
+            echo "_(truncated to first 400 lines — see logs for full output)_"
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Show the Plan for Review
         run: terraform -chdir="${{ steps.mod.outputs.dir }}" show tfplan
 
