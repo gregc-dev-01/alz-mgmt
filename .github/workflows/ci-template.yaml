@@ -16,6 +16,10 @@ jobs:
     outputs:
       changed: ${{ steps.out.outputs.changed }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - id: skip
         if: ${{ inputs.skip_change_detection }}
         run: echo "this=true" >> "$GITHUB_OUTPUT"
@@ -34,6 +38,7 @@ jobs:
         run: |
           val="${{ steps.skip.outputs.this || steps.filter.outputs.this }}"
           echo "changed=$val" >> "$GITHUB_OUTPUT"
+
   validate:
     name: Validate Terraform
     if: ${{ needs.gate.outputs.changed == 'true' }}

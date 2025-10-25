@@ -15,15 +15,30 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.filter.outputs.this }}
+      changed: ${{ steps.out.outputs.changed }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: skip
+        if: ${{ inputs.skip_change_detection }}
+        run: echo "this=true" >> "$GITHUB_OUTPUT"
+
       - id: filter
+        if: ${{ !inputs.skip_change_detection }}
         uses: dorny/paths-filter@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          base: ${{ inputs.base_ref }}
           filters: |
             this:
               - '${{ inputs.root_module_folder_relative_path }}'
+
+      - id: out
+        run: |
+          val="${{ steps.skip.outputs.this || steps.filter.outputs.this }}"
+          echo "changed=$val" >> "$GITHUB_OUTPUT"
 
   plan:
     name: Plan with Terraform
@@ -96,7 +111,7 @@ jobs:
       - name: Publish Module Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: module
+          name: module-${{ steps.mod.outputs.dir }} # <-- unique per module
           path: ./staging/
 
       - name: Show the Plan for Review
@@ -121,21 +136,7 @@ jobs:
       AZAPI_RETRY_GET_AFTER_PUT_MAX_TIME: '60m'
 
     steps:
-      - name: Download Module Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: module
-          path: module
-
-      - name: Checkout Code (for local actions)
-        uses: actions/checkout@v4
-
-      - name: Resolve module dir & key
-        id: tfmeta_apply
-        uses: ./.github/actions/tf-paths
-        with:
-          path: ${{ inputs.root_module_folder_relative_path }}
-
+      # 1) Compute sanitized module dir FIRST (so we can use it below)
       - name: Resolve module directory (strip /**)
         id: mod
         shell: bash
@@ -143,6 +144,24 @@ jobs:
           raw="${{ inputs.root_module_folder_relative_path }}"
           clean="${raw%%/**}"
           echo "dir=$clean" >> "$GITHUB_OUTPUT"
+
+      # 2) Now we can safely reference steps.mod.outputs.dir for the artifact name
+      - name: Download Module Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: module-${{ steps.mod.outputs.dir }}
+          path: module
+
+      # 3) Checkout to make local action available
+      - name: Checkout Code (for local actions)
+        uses: actions/checkout@v4
+
+      # 4) Resolve dir & key (uses local action)
+      - name: Resolve module dir & key
+        id: tfmeta_apply
+        uses: ./.github/actions/tf-paths
+        with:
+          path: ${{ inputs.root_module_folder_relative_path }}
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3

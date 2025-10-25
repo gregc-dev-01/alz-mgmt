@@ -26,24 +26,28 @@ on:
         default: 'latest'
         type: string
 
-# .github/workflows/cd.yaml (auto job)
 jobs:
   plan_and_apply_auto:
     if: ${{ github.event_name == 'push' }}
     strategy:
       matrix: { module: *cd_modules }
+    permissions:
+      id-token: write # OIDC for Terraform auth in callee
+      contents: read # checkout inside the callee
     uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
     with:
       root_module_folder_relative_path: ${{ matrix.module }}
       terraform_action: ${{ github.event.inputs.terraform_action || 'apply' }}
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
       base_ref: ${{ github.event.before }}
-      head_ref: ${{ github.sha }}
 
   plan_and_apply_manual:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix: { module: ['${{ github.event.inputs.module }}'] }
+    permissions:
+      id-token: write
+      contents: read
     uses: gregc-dev-01/alz-mgmt/.github/workflows/cd-template.yaml@main
     with:
       root_module_folder_relative_path: ${{ matrix.module }}
