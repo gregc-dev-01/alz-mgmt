@@ -24,3 +24,5 @@ locals {
   virtual_wan_settings                = merge(module.config.virtual_wan_settings, local.resource_groups)
   virtual_wan_virtual_hubs            = (merge({ vhubs = module.config.virtual_wan_virtual_hubs }, local.resource_groups)).vhubs
 }
+
+# test comment
