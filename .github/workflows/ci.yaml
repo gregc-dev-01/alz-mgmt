@@ -21,30 +21,8 @@ on:
         type: string
 
 jobs:
-  # Gate: per-module change check
-  gate:
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: *ci_modules
-    outputs:
-      changed: ${{ steps.filter.outputs.this }}
-    steps:
-      - id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # Only check the *current* matrix module; no need to list them again
-          filters: |
-            this:
-              - '${{ matrix.module }}'
-
-  # Auto: run reusable CI only for modules that changed
   validate_and_plan_auto:
-    if: ${{ github.event_name == 'pull_request' && needs.gate.outputs.changed == 'true' }}
-    needs: gate
+    if: ${{ github.event_name == 'pull_request' }}
     name: CI • ${{ matrix.module }} (auto)
     strategy:
       fail-fast: false
@@ -59,7 +37,6 @@ jobs:
       root_module_folder_relative_path: ${{ matrix.module }} # template strips '/**'
       terraform_cli_version: ${{ github.event.inputs.terraform_cli_version || 'latest' }}
 
-  # Manual: unchanged
   validate_and_plan_manual:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     name: CI • ${{ matrix.module }} (manual)

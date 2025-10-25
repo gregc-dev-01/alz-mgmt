@@ -27,27 +27,8 @@ on:
         type: string
 
 jobs:
-  gate:
-    if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: *cd_modules
-    outputs:
-      changed: ${{ steps.filter.outputs.this }}
-    steps:
-      - id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          filters: |
-            this:
-              - '${{ matrix.module }}'
-
   plan_and_apply_auto:
-    if: ${{ github.event_name == 'push' && needs.gate.outputs.changed == 'true' }}
-    needs: gate
+    if: ${{ github.event_name == 'push' }}
     name: CD • ${{ matrix.module }} (auto)
     strategy:
       fail-fast: false
