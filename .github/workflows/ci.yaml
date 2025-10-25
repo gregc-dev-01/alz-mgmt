@@ -1,11 +1,6 @@
 ---
 name: 01 Azure Landing Zones Continuous Integration
 
-permissions:
-  contents: read # needed so the callee can checkout
-  pull-requests: write # callee posts PR comment
-  id-token: write # callee requests OIDC for TF auth
-
 on:
   pull_request:
     branches: [main]

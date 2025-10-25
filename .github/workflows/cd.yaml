@@ -1,10 +1,6 @@
 ---
 name: 02 Azure Landing Zones Continuous Delivery
 
-permissions:
-  contents: read
-  id-token: write
-
 on:
   push:
     branches: [main]
